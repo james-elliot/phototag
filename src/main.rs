@@ -1,9 +1,8 @@
 /*
-exiftool -geotag=Louisiane.gpx -geosync=+6:00:00 .
+Dont forget!!!!!!!!!!!!!!!!!!!!!!!
 sudo mount -t tmpfs -o size=1g tmpfs /mnt/ramfs
-convert -background black -fill white -size 480x1080  -gravity center  label:"Ville Plate\nUnited States"   label_size.jpg
-darktable-cli --height 1080 L1004100.DNG toto.jpg
-convert +append label_size.jpg toto.jpg out.jpg
+
+exiftool -geotag=Louisiane.gpx -geosync=+6:00:00 .
 */
 
 use exif;
@@ -103,11 +102,14 @@ fn dist(lat1:f64,lon1:f64,lat2:f64,lon2:f64) -> f64{
   return d;
 }
 
-fn main() {
-    let tab = read_cities("cities.csv");
+fn one(path:&str,tab:Vec<City>) {
 
+    let p = std::path::Path::new(path);
+    let p1 = p.extension().and_then(std::ffi::OsStr::to_str);
+    let p2 = p.file_stem().and_then(std::ffi::OsStr::to_str);
+    println!("{:?} {:?}",p1,p2);
     //    darktable-cli --height 1080 L1004100.DNG toto.jpg
-    let path = "L1004163.DNG";
+
     let status = std::process::Command::new("/usr/bin/darktable-cli")
         .args([
 	    "--height", "1080",
@@ -116,7 +118,7 @@ fn main() {
 	])
         .status()
         .expect("failed to execute process");
-    println!("process finished with: {status}");
+    println!("process darktable finished with: {status}");
     
     let (lat,lon,date)=get_latlon(&"/mnt/ramfs/toto.jpg");
     let r = tab.iter().min_by_key(
@@ -142,19 +144,21 @@ fn main() {
 	])
         .status()
         .expect("failed to execute process");
-    println!("process finished with: {status}");
+    println!("process label finished with: {status}");
 
-//    convert +append label_size.jpg toto.jpg out.jpg
+    //    convert +append label_size.jpg toto.jpg out.jpg
+    
+    let s = "/mnt/f/jpegs/".to_owned()+p2.unwrap()+".jpg";
     let status = std::process::Command::new("/usr/bin/convert")
         .args([
 	    "+append",
 	    "/mnt/ramfs/toto.jpg",
 	    "/mnt/ramfs/label_size.jpg",
-	    "/mnt/f/jpegs/out.jpg"
+	    &s
 	])
         .status()
         .expect("failed to execute process");
-    println!("process finished with: {status}");
+    println!("process append finished with: {status}");
 
     let status = std::process::Command::new("/usr/bin/rm")
         .args([
@@ -163,5 +167,11 @@ fn main() {
 	])
         .status()
         .expect("failed to execute process");
-    println!("process finished with: {status}");
+    println!("process rm finished with: {status}");
+}
+
+fn main() {
+    let tab = read_cities("cities.csv");
+    let path = "./L1004163.DNG";
+    one(path,tab);
 }
