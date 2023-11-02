@@ -43,9 +43,7 @@ fn read_cities(file_path: &str) -> Vec<City> {
 fn get_latlon(path: &str) -> Option<(f64, f64, String)> {
     let file = std::fs::File::open(path).unwrap();
     let mut bufreader = std::io::BufReader::new(&file);
-    let exifreader = exif::Reader::new();
-//    let exif = exifreader.read_from_container(&mut bufreader).unwrap();
-    let exif_res = exifreader.read_from_container(&mut bufreader);
+    let exif_res = exif::Reader::new().read_from_container(&mut bufreader);
     match exif_res {
 	Err(_) => None,
 	Ok(exif) => {
@@ -80,10 +78,8 @@ fn get_latlon(path: &str) -> Option<(f64, f64, String)> {
 		    }
 		}
 	    }
-	    if lat == 0. {
-		return None;
-	    };
-	    Some((lat, lon, s))
+	    if lat == 0.  {None}
+	    else {Some((lat, lon, s))}
 	}
     }
 }
