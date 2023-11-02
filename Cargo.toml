@@ -10,3 +10,4 @@ kamadak-exif = "0.5.5"
 csv = "1.1"
 serde = { version = "1", features = ["derive"] }
 walkdir = "2.3.2"
+argparse = "*"
