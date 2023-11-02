@@ -47,7 +47,7 @@ fn get_latlon(path: &str) -> Option<(f64, f64, String)> {
 //    let exif = exifreader.read_from_container(&mut bufreader).unwrap();
     let exif_res = exifreader.read_from_container(&mut bufreader);
     match exif_res {
-	Err(_) => return None,
+	Err(_) => None,
 	Ok(exif) => {
 	    let mut lat = 0.;
 	    let mut lon = 0.;
@@ -102,7 +102,9 @@ fn dist(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     r * c // Distance in km
 }
 
-fn one(p: &std::path::Path, tab: &[City], ext: &str, output_dir: &str) {
+fn one(p: &std::path::Path, tab: &[City], vexts: &[String], output_dir: &str, tmp_dir: &str) {
+    let label_name = tmp_dir.to_owned()+"/label.jpg";
+    let jpeg_name = tmp_dir.to_owned()+"/photo.jpg";
     let _p1 = p.file_stem().and_then(std::ffi::OsStr::to_str);
     let p2 = p.extension().and_then(std::ffi::OsStr::to_str);
     match p2 {
@@ -112,16 +114,20 @@ fn one(p: &std::path::Path, tab: &[City], ext: &str, output_dir: &str) {
 	},
         Some(s) => {
             let s = s.to_ascii_lowercase();
-            if !s.eq(ext) {
-		eprintln!("Not the right name{:?}",p);
-                return;
+	    let res = vexts.iter().find (|&x| s.eq(x));
+	    match res {
+		None => {
+		    eprintln!("Not the right name{:?}",p);
+                    return
+		},
+		Some(_) => {}
             }
 	}
     }
     let path = p.to_str().unwrap();
     if let Some((lat, lon, date)) = get_latlon(path) {
         let status = std::process::Command::new("/usr/bin/darktable-cli")
-            .args(["--width","1620","--height", "1080", path, "/mnt/ramfs/toto.jpg"])
+            .args(["--width","1620","--height", "1080", path, &jpeg_name])
             .status()
             .expect("failed to execute process darktable-cli");
         if !status.success() {
@@ -147,7 +153,7 @@ fn one(p: &std::path::Path, tab: &[City], ext: &str, output_dir: &str) {
                 "-gravity",
                 "center",
                 &s,
-                "/mnt/ramfs/label_size.jpg",
+                &label_name,
             ])
             .status()
             .expect("failed to execute process convert");
@@ -155,12 +161,12 @@ fn one(p: &std::path::Path, tab: &[City], ext: &str, output_dir: &str) {
 	    eprintln!("process convert finished with status {} for file {:?}",status,p);
 	    return;
 	}
-	let s = output_dir.to_owned() + v0[0]+v0[1]+v0[2]+v1[0]+v1[1]+v1[2] + ".jpg";
+	let s = output_dir.to_owned() + "/" + v0[0]+v0[1]+v0[2]+v1[0]+v1[1]+v1[2] + ".jpg";
         let status = std::process::Command::new("/usr/bin/convert")
             .args([
                 "+append",
-                "/mnt/ramfs/toto.jpg",
-                "/mnt/ramfs/label_size.jpg",
+                &jpeg_name,
+                &label_name,
                 &s,
             ])
             .status()
@@ -169,8 +175,8 @@ fn one(p: &std::path::Path, tab: &[City], ext: &str, output_dir: &str) {
 	    eprintln!("process append finished with status {} for file {:?}",status,p);
 	    return;
 	}
-	std::fs::remove_file("/mnt/ramfs/toto.jpg").expect("Can't remove file");
-	std::fs::remove_file("/mnt/ramfs/label_size.jpg").expect("Can't remove file");
+	std::fs::remove_file(&jpeg_name).expect("Can't remove file");
+	std::fs::remove_file(&label_name).expect("Can't remove file");
     }
     else {
 	eprintln!("Can't get lat/lon for {:?}",p);
@@ -179,11 +185,13 @@ fn one(p: &std::path::Path, tab: &[City], ext: &str, output_dir: &str) {
 
 use argparse::{ArgumentParser, Store};
 fn main() {
-    let mut output_dir = "/mnt/f/jpegs/".to_string();
+    let mut output_dir = "/mnt/f/jpegs".to_string();
     let mut cities = "cities.csv".to_string();
     let mut search_dir = ".".to_string();
     let mut nb_levels = 1;
-
+    let mut exts = "jpg".to_string();
+    let mut tmp_dir = "/mnt/ramfs".to_string();
+    
     { // this block limits scope of borrows by ap.refer() method
         let mut ap = ArgumentParser::new();
         ap.set_description("Build photos for slideshows");
@@ -192,12 +200,17 @@ fn main() {
         ap.refer(&mut search_dir)
             .add_option(&["-d","--directory"], Store,"Name of directory holding the photos (default .)");
 	ap.refer(&mut output_dir)
-            .add_option(&["-o","--output"], Store, "Name of output directory (default /mnt/f/jpegs/)");
+            .add_option(&["-o","--output"], Store, "Name of output directory (default /mnt/f/jpegs)");
+	ap.refer(&mut tmp_dir)
+            .add_option(&["-t","--tmp"], Store, "Temporary workspace (default /mnt/ramfs)");
 	ap.refer(&mut cities)
             .add_option(&["-c","--cities"], Store, "File holding cities names (default ./cities.csv)");
+	ap.refer(&mut exts)
+            .add_option(&["-e","--exts"], Store, "string (not case sensitive) holding file extension(s) to process separated by commas (default jpg)");
         ap.parse_args_or_exit();
     }
-    
+
+    let vexts:Vec<String> = exts.split(',').map(|x| x.to_ascii_lowercase()).collect();
     let tab = read_cities(&cities);
     for entry in walkdir::WalkDir::new(search_dir)
 	.max_depth(nb_levels)
@@ -205,12 +218,6 @@ fn main() {
         .filter_map(|e| e.ok())
     {
         println!("Processing {}", entry.path().display());
-        one(entry.path(), &tab, "jpg",&output_dir);
-}
-
-/*
-    let path = "./L1004163.DNG";
-    let p = std::path::Path::new(path);
-    one(p,&tab,"dng");
-*/
+        one(entry.path(), &tab, &vexts,&output_dir,&tmp_dir);
+    }
 }
