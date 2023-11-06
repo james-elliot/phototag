@@ -157,7 +157,7 @@ fn one(p: &std::path::Path, tab: &[City], vexts: &[String], output_dir: &str, tm
 	    eprintln!("process convert finished with status {} for file {:?}",status,p);
 	    return;
 	}
-	let s = output_dir.to_owned() + "/" + v0[0]+v0[1]+v0[2]+v1[0]+v1[1]+v1[2] + ".jpg";
+	let s = output_dir.to_owned() + "/IMG_" + v0[0]+v0[1]+v0[2]+"_"+v1[0]+v1[1]+v1[2] + ".jpg";
         let status = std::process::Command::new("/usr/bin/convert")
             .args([
                 "+append",
