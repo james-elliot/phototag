@@ -1,7 +1,8 @@
 /*
-Dont forget!!!!!!!!!!!!!!!!!!!!!!!
+Dont forget if you need a ramdisk
 sudo mount -t tmpfs -o size=1g tmpfs /mnt/ramfs
 
+To modify time and geotag:
 exiftool -geotag=Louisiane.gpx -geosync=+6:00:00 .
 */
 
@@ -186,7 +187,7 @@ fn main() {
     let mut search_dir = ".".to_string();
     let mut nb_levels = 1;
     let mut exts = "jpg".to_string();
-    let mut tmp_dir = "/mnt/ramfs".to_string();
+    let mut tmp_dir = "/tmp".to_string();
     
     { // this block limits scope of borrows by ap.refer() method
         let mut ap = ArgumentParser::new();
